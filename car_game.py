@@ -1,6 +1,7 @@
 import pygame
 import random
 import os
+import sys
 from pygame.locals import *
 
 pygame.init()
@@ -59,6 +60,13 @@ player_x = center_lane
 player_y = 500
 
 # -------------------------
+# CAR TILT
+# -------------------------
+tilt_angle = 0
+tilt_speed = 6
+max_tilt = 15
+
+# -------------------------
 # FILES
 # -------------------------
 leaderboard_file = "leaderboard.txt"
@@ -114,7 +122,7 @@ car_skins = [
     pygame.image.load("images/car_red.png"),
     pygame.image.load("images/car_blue.png"),
 ]
-
+preview_skin = 0
 current_skin = 0
 
 vehicle_images = [
@@ -123,6 +131,11 @@ vehicle_images = [
     pygame.image.load("images/taxi.png"),
     pygame.image.load("images/van.png"),
 ]
+# -------------------------
+# CAR SIZE
+# -------------------------
+car_width = 75
+car_height = 110
 
 # -------------------------
 # EXPLOSION FRAMES
@@ -150,11 +163,7 @@ class Vehicle(pygame.sprite.Sprite):
     def __init__(self, image, x, y):
         super().__init__()
 
-        scale = 45 / image.get_rect().width
-        new_w = image.get_rect().width * scale
-        new_h = image.get_rect().height * scale
-
-        self.image = pygame.transform.scale(image, (new_w, new_h))
+        self.image = pygame.transform.scale(image, (car_width, car_height))
         self.rect = self.image.get_rect()
         self.rect.center = [x, y]
 
@@ -165,12 +174,20 @@ class PlayerVehicle(Vehicle):
         image = car_skins[current_skin]
         super().__init__(image, x, y)
 
+        self.original_image = self.image
+        self.angle = 0
+
     def update_skin(self):
+
         image = car_skins[current_skin]
-        scale = 45 / image.get_rect().width
-        new_w = image.get_rect().width * scale
-        new_h = image.get_rect().height * scale
-        self.image = pygame.transform.scale(image, (new_w, new_h))
+        self.original_image = pygame.transform.scale(image, (car_width, car_height))
+        self.image = self.original_image
+
+    def tilt(self, angle):
+
+        self.angle = angle
+        self.image = pygame.transform.rotate(self.original_image, angle)
+        self.rect = self.image.get_rect(center=self.rect.center)
 
 
 class PowerUp(pygame.sprite.Sprite):
@@ -307,38 +324,57 @@ def settings_menu():
 # -------------------------
 def skin_menu():
 
-    global current_skin
+    global preview_skin, current_skin
 
-    while True:
+    running = True
 
-        screen.fill(gray)
+    while running:
 
-        screen.blit(font_big.render("SELECT CAR", True, white), (150, 150))
+        screen.fill((30, 30, 40))
 
-        screen.blit(font_small.render("1 Red Car", True, white), (180, 260))
-        screen.blit(font_small.render("2 Blue Car", True, white), (180, 300))
-        screen.blit(font_small.render("3 Default", True, white), (180, 340))
+        title = font_big.render("SELECT CAR SKIN", True, white)
+        screen.blit(title, (width / 2 - title.get_width() / 2, 80))
+
+        # preview car
+        preview_image = pygame.transform.scale(car_skins[preview_skin], (120, 180))
+        preview_rect = preview_image.get_rect(center=(width / 2, height / 2))
+
+        screen.blit(preview_image, preview_rect)
+
+        txt = font_small.render(
+            "LEFT/RIGHT = Change  ENTER = Select", True, (200, 200, 200)
+        )
+        screen.blit(txt, (width / 2 - txt.get_width() / 2, height - 150))
+
+        back_txt = font_small.render("ESC = Back", True, (200, 200, 200))
+        screen.blit(back_txt, (width / 2 - back_txt.get_width() / 2, height - 110))
 
         pygame.display.update()
 
         for event in pygame.event.get():
 
-            if event.type == KEYDOWN:
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
 
-                if event.key == K_1:
-                    current_skin = 1
-                    player.update_skin()
-                    return
+            if event.type == pygame.KEYDOWN:
 
-                if event.key == K_2:
-                    current_skin = 2
-                    player.update_skin()
-                    return
+                if event.key == pygame.K_RIGHT:
+                    preview_skin += 1
+                    if preview_skin >= len(car_skins):
+                        preview_skin = 0
 
-                if event.key == K_3:
-                    current_skin = 0
+                if event.key == pygame.K_LEFT:
+                    preview_skin -= 1
+                    if preview_skin < 0:
+                        preview_skin = len(car_skins) - 1
+
+                if event.key == pygame.K_RETURN:
+                    current_skin = preview_skin
                     player.update_skin()
-                    return
+
+                if event.key == pygame.K_ESCAPE:
+                    running = False
 
 
 # -------------------------
@@ -529,9 +565,11 @@ while running:
 
             if event.key == K_LEFT and player.rect.center[0] > left_lane:
                 player.rect.x -= 100
+                player.tilt(max_tilt)
 
             if event.key == K_RIGHT and player.rect.center[0] < right_lane:
                 player.rect.x += 100
+                player.tilt(-max_tilt)
 
     # background
     if night_mode:
@@ -611,6 +649,15 @@ while running:
     vehicle_group.draw(screen)
     powerup_group.draw(screen)
 
+    # smooth return tilt
+    if player.angle > 0:
+        player.angle -= tilt_speed
+    elif player.angle < 0:
+        player.angle += tilt_speed
+
+    player.image = pygame.transform.rotate(player.original_image, player.angle)
+    player.rect = player.image.get_rect(center=player.rect.center)
+    
     draw_hud()
 
     pygame.display.update()
