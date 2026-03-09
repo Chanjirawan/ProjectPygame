@@ -54,7 +54,7 @@ lane_marker_move_y = 0
 # -------------------------
 speed = 3
 score = 0
-shield = False
+shield_count = 0
 
 player_x = center_lane
 player_y = 500
@@ -131,6 +131,11 @@ vehicle_images = [
     pygame.image.load("images/taxi.png"),
     pygame.image.load("images/van.png"),
 ]
+
+shield_img = pygame.image.load("images/shield.png")
+shield_img = pygame.transform.scale(shield_img, (40, 40))
+shield_icon = pygame.image.load("images/shield.png")
+shield_icon = pygame.transform.scale(shield_icon, (30, 30))
 # -------------------------
 # CAR SIZE
 # -------------------------
@@ -195,8 +200,7 @@ class PowerUp(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
 
-        self.image = pygame.Surface((30, 30))
-        self.image.fill((0, 200, 255))
+        self.image = shield_img
 
         self.rect = self.image.get_rect()
         self.rect.center = [random.choice(lanes), -50]
@@ -538,8 +542,8 @@ def draw_hud():
     screen.blit(font_small.render(f"Score: {score}", True, white), (10, 10))
     screen.blit(font_small.render(f"Speed: {speed}", True, white), (10, 40))
 
-    if shield:
-        screen.blit(font_small.render("SHIELD", True, (0, 200, 255)), (380, 10))
+    for i in range(shield_count):
+      screen.blit(shield_icon, (width - 40 - i*35, 10))
 
 
 # -------------------------
@@ -629,8 +633,8 @@ while running:
     # collision
     if pygame.sprite.spritecollide(player, vehicle_group, True):
 
-        if shield:
-            shield = False
+        if shield_count > 0:
+            shield_count -= 1
         else:
 
             if crash_sound:
@@ -643,7 +647,7 @@ while running:
             running = False
 
     if pygame.sprite.spritecollide(player, powerup_group, True):
-        shield = True
+        shield_count += 1
 
     player_group.draw(screen)
     vehicle_group.draw(screen)
