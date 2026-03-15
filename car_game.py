@@ -3,6 +3,8 @@ import random
 import os
 import sys
 from pygame.locals import *
+from skin_shop import skin_shop
+
 
 pygame.init()
 pygame.mixer.init()
@@ -555,10 +557,11 @@ def start_menu():
                 settings_menu()
 
             if skin_btn.clicked(event):
-                skin_menu()
+                skin_shop()
 
             if leader_btn.clicked(event):
                 leaderboard_screen()
+            
 
             if quit_btn.clicked(event):
                 pygame.quit()
