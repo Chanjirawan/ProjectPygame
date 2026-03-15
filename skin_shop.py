@@ -278,7 +278,7 @@ def skin_shop(coins, current_skin):
 
                             coins -= price
                             skin["owned"] = True
-                            current_skin = preview_skin   # ⭐ เลือกใช้ทันที
+                            current_skin = preview_skin 
                             buy_animation()
 
                 if event.key == pygame.K_SPACE:
