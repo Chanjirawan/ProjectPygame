@@ -136,6 +136,9 @@ shield_img = pygame.image.load("images/shield.png")
 shield_img = pygame.transform.scale(shield_img, (40, 40))
 shield_icon = pygame.image.load("images/shield.png")
 shield_icon = pygame.transform.scale(shield_icon, (30, 30))
+
+coin_img = pygame.image.load("images/coin.png")
+coin_img = pygame.transform.scale(coin_img, (35, 35))
 # -------------------------
 # CAR SIZE
 # -------------------------
@@ -209,6 +212,20 @@ class PowerUp(pygame.sprite.Sprite):
         self.rect.y += speed
 
 
+class Coin(pygame.sprite.Sprite):
+
+    def __init__(self):
+        super().__init__()
+
+        self.image = coin_img
+        self.rect = self.image.get_rect()
+
+        self.rect.center = [random.choice(lanes), -50]
+
+    def update(self):
+        self.rect.y += speed
+
+
 # -------------------------
 # GROUPS
 # -------------------------
@@ -219,7 +236,7 @@ powerup_group = pygame.sprite.Group()
 player = PlayerVehicle(player_x, player_y)
 player_group.add(player)
 
-
+coin_group = pygame.sprite.Group()
 # -------------------------
 # LEADERBOARD
 # -------------------------
@@ -241,7 +258,9 @@ def save_score(new_score):
         for s in scores:
             f.write(str(s) + "\n")
 
-
+score = 0
+shield_count = 0
+coins = 0
 # -------------------------
 # DRAW RAIN
 # -------------------------
@@ -274,7 +293,7 @@ def play_explosion(x, y):
 # -------------------------
 def settings_menu():
 
-    global night_mode, rain_mode, fullscreen
+    global night_mode, rain_mode, fullscreen, screen
 
     volume = pygame.mixer.music.get_volume()
 
@@ -318,9 +337,9 @@ def settings_menu():
                     fullscreen = not fullscreen
 
                     if fullscreen:
-                        pygame.display.set_mode((width, height), FULLSCREEN)
+                        screen = pygame.display.set_mode((width, height), FULLSCREEN)
                     else:
-                        pygame.display.set_mode((width, height))
+                        screen = pygame.display.set_mode((width, height))
 
 
 # -------------------------
@@ -329,20 +348,23 @@ def settings_menu():
 def skin_menu():
 
     global preview_skin, current_skin
+    unlock_blue = coins >= 5
+    unlock_red = coins >= 10
 
     running = True
 
     while running:
+
+        unlock_blue = coins >= 5
+        unlock_red = coins >= 10
 
         screen.fill((30, 30, 40))
 
         title = font_big.render("SELECT CAR SKIN", True, white)
         screen.blit(title, (width / 2 - title.get_width() / 2, 80))
 
-        # preview car
         preview_image = pygame.transform.scale(car_skins[preview_skin], (120, 180))
         preview_rect = preview_image.get_rect(center=(width / 2, height / 2))
-
         screen.blit(preview_image, preview_rect)
 
         txt = font_small.render(
@@ -352,8 +374,6 @@ def skin_menu():
 
         back_txt = font_small.render("ESC = Back", True, (200, 200, 200))
         screen.blit(back_txt, (width / 2 - back_txt.get_width() / 2, height - 110))
-
-        pygame.display.update()
 
         for event in pygame.event.get():
 
@@ -374,11 +394,20 @@ def skin_menu():
                         preview_skin = len(car_skins) - 1
 
                 if event.key == pygame.K_RETURN:
+
+                    if preview_skin == 1 and coins < 5:
+                        continue
+
+                    if preview_skin == 2 and coins < 10:
+                        continue
+
                     current_skin = preview_skin
                     player.update_skin()
 
                 if event.key == pygame.K_ESCAPE:
                     running = False
+
+        pygame.display.update()  # ⭐ ต้องมีบรรทัดนี้
 
 
 # -------------------------
@@ -402,6 +431,8 @@ def leaderboard_screen():
             y += 40
 
         screen.blit(font_small.render("ESC to return", True, white), (170, 450))
+
+        
 
         pygame.display.update()
 
@@ -541,6 +572,7 @@ def draw_hud():
 
     screen.blit(font_small.render(f"Score: {score}", True, white), (10, 10))
     screen.blit(font_small.render(f"Speed: {speed}", True, white), (10, 40))
+    screen.blit(font_small.render(f"Coins: {coins}", True, yellow), (10, 70))
 
     for i in range(shield_count):
       screen.blit(shield_icon, (width - 40 - i*35, 10))
@@ -603,7 +635,7 @@ while running:
         draw_rain()
 
     # add vehicles
-    if len(vehicle_group) < 2:
+    if len(vehicle_group) < 3:
 
         lane = random.choice(lanes)
         img = random.choice(vehicle_images)
@@ -614,6 +646,9 @@ while running:
     # powerup
     if random.randint(1, 500) == 1:
         powerup_group.add(PowerUp())
+        # spawn coin
+    if random.randint(1, 120) == 1:
+        coin_group.add(Coin())
 
     # move vehicles
     for vehicle in vehicle_group:
@@ -629,14 +664,20 @@ while running:
                 speed += 1
 
     powerup_group.update()
+    coin_group.update()
 
-    # collision
-    if pygame.sprite.spritecollide(player, vehicle_group, True):
+    # -------------------------
+    # COLLISION
+    # -------------------------
+
+    hit = pygame.sprite.spritecollide(player, vehicle_group, True)
+
+    if hit:
 
         if shield_count > 0:
             shield_count -= 1
-        else:
 
+        else:
             if crash_sound:
                 crash_sound.play()
 
@@ -644,16 +685,35 @@ while running:
 
             save_score(score)
 
-            running = False
+            score = 0
+            speed = 3
+            vehicle_group.empty()
+            powerup_group.empty()
+            coin_group.empty()
 
+            start_menu()
+
+    # powerup collision
     if pygame.sprite.spritecollide(player, powerup_group, True):
         shield_count += 1
+
+    # coin collision
+    if pygame.sprite.spritecollide(player, coin_group, True):
+        coins += 1
+
+    # -------------------------
+    # DRAW SPRITES
+    # -------------------------
 
     player_group.draw(screen)
     vehicle_group.draw(screen)
     powerup_group.draw(screen)
+    coin_group.draw(screen)
 
-    # smooth return tilt
+    # -------------------------
+    # TILT RESET
+    # -------------------------
+
     if player.angle > 0:
         player.angle -= tilt_speed
     elif player.angle < 0:
@@ -661,9 +721,7 @@ while running:
 
     player.image = pygame.transform.rotate(player.original_image, player.angle)
     player.rect = player.image.get_rect(center=player.rect.center)
-    
+
     draw_hud()
 
     pygame.display.update()
-
-pygame.quit()
