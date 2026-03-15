@@ -4,8 +4,10 @@
     "centerx",
     "centery",
     "collidepoint",
+    "cooldown",
     "MOUSEBUTTONDOWN",
     "powerup",
-    "spritecollide"
-]
+    "spritecollide",
+    "ต้องมีบรรทัดนี"
+  ]
 }

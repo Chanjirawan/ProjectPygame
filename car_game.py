@@ -57,6 +57,9 @@ lane_marker_move_y = 0
 speed = 3
 score = 0
 shield_count = 0
+nitro = 100
+nitro_active = False
+nitro_timer = 0
 
 player_x = center_lane
 player_y = 500
@@ -237,6 +240,7 @@ powerup_group = pygame.sprite.Group()
 
 player = PlayerVehicle(player_x, player_y)
 player_group.add(player)
+player.update_skin()
 
 coin_group = pygame.sprite.Group()
 # -------------------------
@@ -316,7 +320,8 @@ def settings_menu():
         for event in pygame.event.get():
 
             if event.type == KEYDOWN:
-
+            
+    
                 if event.key == K_ESCAPE:
                     return
 
@@ -506,6 +511,8 @@ class AnimatedButton:
 # START MENU (PRO UI)
 # -------------------------
 def start_menu():
+    global coins
+    global current_skin
 
     title_y = 140
     direction = 1
@@ -557,11 +564,11 @@ def start_menu():
                 settings_menu()
 
             if skin_btn.clicked(event):
-                skin_shop()
+                coins, current_skin = skin_shop(coins, current_skin)
+                player.update_skin()
 
             if leader_btn.clicked(event):
                 leaderboard_screen()
-            
 
             if quit_btn.clicked(event):
                 pygame.quit()
@@ -610,7 +617,31 @@ while running:
                 player.rect.x += 100
                 player.tilt(-max_tilt)
 
-    # background
+            if event.key == K_SPACE and nitro > 20:
+                nitro_active = True
+
+    # -------------------------
+    # NITRO SYSTEM
+    # -------------------------
+
+    if nitro_active:
+
+        speed = 7
+        nitro -= 0.7
+        nitro_timer += 1
+
+        if nitro_timer > 120 or nitro <= 0:
+            nitro_active = False
+            nitro_timer = 0
+            speed = 3
+
+    if not nitro_active and nitro < 100:
+        nitro += 0.1
+
+    # -------------------------
+    # BACKGROUND
+    # -------------------------
+
     if night_mode:
         screen.fill(dark_blue)
     else:
@@ -638,18 +669,23 @@ while running:
         draw_rain()
 
     # add vehicles
-    if len(vehicle_group) < 3:
+    if len(vehicle_group) < 2:
 
-        lane = random.choice(lanes)
-        img = random.choice(vehicle_images)
+        used_lanes = [v.rect.centerx for v in vehicle_group]
+        free_lanes = [l for l in lanes if l not in used_lanes]
 
-        vehicle = Vehicle(img, lane, -100)
-        vehicle_group.add(vehicle)
+        if free_lanes:
+            lane = random.choice(free_lanes)
+            img = random.choice(vehicle_images)
 
-    # powerup
+            vehicle = Vehicle(img, lane, -100)
+            vehicle_group.add(vehicle)
+
+    # spawn powerup
     if random.randint(1, 500) == 1:
         powerup_group.add(PowerUp())
-        # spawn coin
+
+    # spawn coin
     if random.randint(1, 120) == 1:
         coin_group.add(Coin())
 
@@ -726,5 +762,12 @@ while running:
     player.rect = player.image.get_rect(center=player.rect.center)
 
     draw_hud()
+    pygame.draw.rect(screen, (100,100,100), (width-170, 40, 150, 15))
+
+    nitro = min(nitro, 100)
+
+    pygame.draw.rect(screen, (0,150,255), (width-170, 40, nitro*1.5, 15))
+
+    screen.blit(font_small.render("Nitro", True, white), (width-170, 20))
 
     pygame.display.update()
